@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-init-script
+  namespace: nexusplay
+data:
+  vault-init.sh: |
+    #!/bin/sh
+    set -e
+    export VAULT_ADDR="http://vault.nexusplay.svc.cluster.local:8200"
+
+    JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    VAULT_TOKEN=$(vault write -field=token auth/kubernetes/login role="${VAULT_ROLE}" jwt="${JWT}")
+    export VAULT_TOKEN
+
+    DB_USER=$(vault kv get -field=username secret/nexusplay/db)
+    DB_PASSWORD=$(vault kv get -field=password secret/nexusplay/db)
+    DB_NAME=$(vault kv get -field=database secret/nexusplay/db)
+
+    cat > /vault-secrets/.env <<EOF
+    PGUSER=${DB_USER}
+    PGPASSWORD=${DB_PASSWORD}
+    PGDATABASE=${DB_NAME}
+    EOF
+
+    echo "Secrets Vault recuperes et ecrits dans /vault-secrets/.env"

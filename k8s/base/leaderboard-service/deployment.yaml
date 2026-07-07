@@ -13,9 +13,36 @@ spec:
       labels:
         app: leaderboard-service
     spec:
+      serviceAccountName: leaderboard-service-sa
+      volumes:
+        - name: vault-secrets
+          emptyDir: {}
+        - name: vault-init-script
+          configMap:
+            name: vault-init-script
+            defaultMode: 0755
+      initContainers:
+        # Recupere les identifiants Postgres depuis Vault (auth Kubernetes) et les
+        # ecrit dans un fichier .env partage, lu par le conteneur principal au
+        # demarrage. Remplace les identifiants en dur/Secret k8s par une source
+        # geree par Vault (cf Phase 6 du projet).
+        - name: vault-init
+          image: hashicorp/vault:1.17
+          command: ["sh", "/scripts/vault-init.sh"]
+          env:
+            - name: VAULT_ROLE
+              value: leaderboard-service
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault-secrets
+            - name: vault-init-script
+              mountPath: /scripts
       containers:
         - name: leaderboard-service
           image: yazmhog/nexusplay-leaderboard-service:1.1.0
+          command: ["sh", "-c"]
+          args:
+            - "set -a; . /vault-secrets/.env; set +a; exec node src/index.js"
           ports:
             - containerPort: 3000
           env:
@@ -25,21 +52,10 @@ spec:
               value: postgres.nexusplay.svc.cluster.local
             - name: PGPORT
               value: "5432"
-            - name: PGUSER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: POSTGRES_USER
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: POSTGRES_PASSWORD
-            - name: PGDATABASE
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: POSTGRES_DB
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault-secrets
+              readOnly: true
           resources:
             requests:
               cpu: 100m

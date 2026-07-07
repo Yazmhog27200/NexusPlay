@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: nexusplay
+  labels:
+    app: vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      serviceAccountName: vault-sa
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.17
+          args: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
+          env:
+            # Mode dev uniquement : token racine fixe pour pouvoir le configurer
+            # de facon reproductible. A ne jamais faire en production (dev mode =
+            # stockage en memoire, aucune persistance, se reinitialise si le pod redemarre).
+            - name: VAULT_DEV_ROOT_TOKEN_ID
+              value: nexusplay-root-token
+          ports:
+            - containerPort: 8200
+          securityContext:
+            capabilities:
+              add: ["IPC_LOCK"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
