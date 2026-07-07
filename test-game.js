@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-const URL = 'ws://frontend/ws';
+const URL = process.env.TEST_URL || 'ws://frontend/ws';
 
 function makeClient(nickname) {
   return new Promise((resolve) => {
@@ -79,7 +79,7 @@ async function main() {
   await new Promise((r) => setTimeout(r, 1000));
 
   console.log('--- Verification du leaderboard ---');
-  const res = await fetch('http://frontend/api/leaderboard/top');
+  const res = await fetch(process.env.TEST_HTTP_URL || 'http://frontend/api/leaderboard/top');
   const body = await res.json();
   console.log(JSON.stringify(body, null, 2));
 
