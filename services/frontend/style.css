@@ -1,0 +1,48 @@
+body {
+  font-family: sans-serif;
+  text-align: center;
+  background: #1a1a2e;
+  color: #eee;
+  padding: 20px;
+}
+
+#lobby input {
+  padding: 8px;
+  font-size: 16px;
+}
+
+#lobby button, #board .cell {
+  cursor: pointer;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 80px);
+  grid-template-rows: repeat(3, 80px);
+  gap: 4px;
+  justify-content: center;
+  margin: 20px auto;
+}
+
+.board.hidden {
+  display: none;
+}
+
+.cell {
+  background: #16213e;
+  font-size: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #0f3460;
+}
+
+table {
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #0f3460;
+  padding: 6px 14px;
+}

@@ -1,0 +1,51 @@
+services:
+  redis:
+    image: valkey/valkey:8-alpine
+    networks:
+      - nexusplay
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nexusplay
+      POSTGRES_PASSWORD: nexusplay
+      POSTGRES_DB: nexusplay
+    networks:
+      - nexusplay
+
+  game-service:
+    build: ./services/game-service
+    environment:
+      REDIS_URL: redis://redis:6379
+      LEADERBOARD_URL: http://leaderboard-service:3000
+    depends_on:
+      - redis
+    networks:
+      - nexusplay
+
+  leaderboard-service:
+    build: ./services/leaderboard-service
+    environment:
+      REDIS_URL: redis://redis:6379
+      PGHOST: postgres
+      PGUSER: nexusplay
+      PGPASSWORD: nexusplay
+      PGDATABASE: nexusplay
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - nexusplay
+
+  frontend:
+    build: ./services/frontend
+    ports:
+      - "8090:80"
+    depends_on:
+      - game-service
+      - leaderboard-service
+    networks:
+      - nexusplay
+
+networks:
+  nexusplay:

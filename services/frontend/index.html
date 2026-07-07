@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>NexusPlay - Morpion</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>NexusPlay — Morpion multijoueur</h1>
+
+  <div id="lobby">
+    <input id="nickname" type="text" placeholder="Ton pseudo" />
+    <button id="findMatchBtn">Chercher une partie</button>
+  </div>
+
+  <p id="status">Renseigne un pseudo puis clique sur "Chercher une partie".</p>
+
+  <div id="board" class="board hidden">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+
+  <h2>Classement</h2>
+  <table id="leaderboard">
+    <thead><tr><th>Joueur</th><th>V</th><th>D</th><th>N</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="app.js"></script>
+</body>
+</html>

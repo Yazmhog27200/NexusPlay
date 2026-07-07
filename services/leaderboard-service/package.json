@@ -1,0 +1,15 @@
+{
+  "name": "leaderboard-service",
+  "version": "1.0.0",
+  "description": "NexusPlay - service de classement (Postgres + cache Redis cache-aside)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "ioredis": "^5.4.1",
+    "cors": "^2.8.5"
+  }
+}

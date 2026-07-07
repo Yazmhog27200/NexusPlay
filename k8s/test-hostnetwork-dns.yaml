@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dns-hostnetwork-test
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dns-hostnetwork-test
+  template:
+    metadata:
+      labels:
+        app: dns-hostnetwork-test
+    spec:
+      hostNetwork: true
+      containers:
+        - name: dnsmasq
+          image: alpine:3.19
+          command: ["sh", "-c", "apk add --no-cache dnsmasq >/dev/null 2>&1 && dnsmasq -k"]
