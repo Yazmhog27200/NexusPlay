@@ -4,14 +4,30 @@ const { WebSocketServer } = require('ws');
 const Redis = require('ioredis');
 const { v4: uuidv4 } = require('uuid');
 const { checkOutcome } = require('./tictactoe');
+const client = require('prom-client');
 
 const PORT = process.env.PORT || 3000;
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const LEADERBOARD_URL = process.env.LEADERBOARD_URL || 'http://localhost:3001';
 const EVENTS_CHANNEL = 'game:events';
 
+client.collectDefaultMetrics();
+const activeConnections = new client.Gauge({
+  name: 'websocket_connections_active',
+  help: 'Nombre de connexions WebSocket actives sur ce pod',
+});
+const messagesTotal = new client.Counter({
+  name: 'websocket_messages_total',
+  help: 'Nombre de messages WebSocket recus, par type',
+  labelNames: ['type'],
+});
+
 const app = express();
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'game-service' }));
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
@@ -132,6 +148,7 @@ async function playMove(playerId, roomId, cellIndex) {
 wss.on('connection', (ws) => {
   const playerId = uuidv4();
   localConnections.set(playerId, ws);
+  activeConnections.set(localConnections.size);
   ws.send(JSON.stringify({ type: 'welcome', playerId }));
 
   ws.on('message', async (raw) => {
@@ -142,6 +159,8 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    messagesTotal.inc({ type: msg.type || 'inconnu' });
+
     if (msg.type === 'find_match') {
       await findMatch(playerId, msg.nickname || 'Joueur');
     } else if (msg.type === 'move') {
@@ -151,6 +170,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     localConnections.delete(playerId);
+    activeConnections.set(localConnections.size);
   });
 });
 

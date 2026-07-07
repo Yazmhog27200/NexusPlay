@@ -1,0 +1,25 @@
+# Configuration allegee pour un cluster Kubernetes local mono-noeud (Docker Desktop / kind).
+# On desactive les composants de control-plane que kind n'expose pas (sinon les dashboards
+# affichent des cibles "down" en permanence, ce qui ressemble a un bug pendant la demo).
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    # Autorise Prometheus a decouvrir les ServiceMonitor de n'importe quel namespace,
+    # pas seulement ceux avec le label "release" du chart (par defaut).
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: 1
+
+grafana:
+  enabled: true
+  adminPassword: nexusplay-admin

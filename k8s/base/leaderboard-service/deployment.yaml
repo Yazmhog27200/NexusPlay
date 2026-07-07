@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: leaderboard-service
-          image: yazmhog/nexusplay-leaderboard-service:1.0.0
+          image: yazmhog/nexusplay-leaderboard-service:1.1.0
           ports:
             - containerPort: 3000
           env:

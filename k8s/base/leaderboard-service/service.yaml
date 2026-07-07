@@ -3,9 +3,12 @@ kind: Service
 metadata:
   name: leaderboard-service
   namespace: nexusplay
+  labels:
+    app: leaderboard-service
 spec:
   selector:
     app: leaderboard-service
   ports:
-    - port: 3000
+    - name: http
+      port: 3000
       targetPort: 3000
