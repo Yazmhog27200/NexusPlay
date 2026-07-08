@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dns-ha-config
+  namespace: nexusplay
+data:
+  dnsmasq.conf: |
+    no-resolv
+    no-hosts
+    log-queries
+    log-facility=-
+    # Zone interne de demo : resout nexusplay.local vers le Service frontend.
+    # IP statique (ClusterIP du Service "frontend") : acceptable pour la demo,
+    # a reconstruire si le Service frontend est recree (son ClusterIP changerait).
+    address=/nexusplay.local/10.96.208.161

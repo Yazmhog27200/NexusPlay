@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dns-ha
+  namespace: nexusplay
+  labels:
+    app: dns-ha
+spec:
+  # Redondance niveau Service k8s (pas de VIP flottante VRRP) : ce cluster
+  # Docker Desktop/kind est mono-noeud, donc 2 replicas hostNetwork+VRRP se
+  # marchent dessus (meme port 53 sur le meme et seul noeud -> CrashLoopBackOff,
+  # teste et confirme en Phase 0). kube-proxy repartit deja le trafic entre les
+  # 2 pods, et readinessProbe retire automatiquement un pod mort de la rotation.
+  # Le vrai mecanisme VRRP/keepalived est demontre separament dans
+  # network-ha-lab/mission1-keepalived-vip (necessite >=2 noeuds reels pour
+  # avoir un sens).
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dns-ha
+  template:
+    metadata:
+      labels:
+        app: dns-ha
+    spec:
+      containers:
+        - name: dnsmasq
+          image: alpine:3.19
+          command: ["sh", "-c", "apk add --no-cache dnsmasq >/dev/null 2>&1 && exec dnsmasq -k -C /etc/dnsmasq.conf"]
+          ports:
+            - containerPort: 53
+              protocol: UDP
+            - containerPort: 53
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/dnsmasq.conf
+              subPath: dnsmasq.conf
+          readinessProbe:
+            tcpSocket:
+              port: 53
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 53
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      volumes:
+        - name: config
+          configMap:
+            name: dns-ha-config
