@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: nexusplay-rules
+  namespace: nexusplay
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: nexusplay.rules
+      rules:
+        - alert: HPAMaxedOut
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="nexusplay"}
+              == kube_horizontalpodautoscaler_spec_max_replicas{namespace="nexusplay"}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            description: "{{ $labels.horizontalpodautoscaler }} est au maximum de replicas ({{ $value }}) depuis plus de 5 minutes dans {{ $labels.namespace }} : la charge depasse la capacite prevue, envisager d'augmenter maxReplicas."
