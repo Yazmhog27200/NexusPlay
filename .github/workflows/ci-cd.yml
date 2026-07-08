@@ -21,7 +21,7 @@ jobs:
         # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
         # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
         # explicitement.
-        shell: 'C:\Program Files\Git\bin\bash.exe -e -o pipefail {0}'
+        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: echo "tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/login-action@v3
@@ -66,7 +66,7 @@ jobs:
         # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
         # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
         # explicitement.
-        shell: 'C:\Program Files\Git\bin\bash.exe -e -o pipefail {0}'
+        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           for svc in game-service leaderboard-service frontend; do
@@ -83,7 +83,7 @@ jobs:
         # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
         # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
         # explicitement.
-        shell: 'C:\Program Files\Git\bin\bash.exe -e -o pipefail {0}'
+        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: |
           TAG="${{ needs.build-and-push.outputs.tag }}"
           kubectl set image deployment/game-service game-service=yazmhog/nexusplay-game-service:$TAG -n nexusplay
@@ -102,7 +102,7 @@ jobs:
         # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
         # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
         # explicitement.
-        shell: 'C:\Program Files\Git\bin\bash.exe -e -o pipefail {0}'
+        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: |
           docker run --rm --add-host=host.docker.internal:host-gateway \
             -v "${{ github.workspace }}/loadtest/k6:/scripts" \
@@ -117,7 +117,7 @@ jobs:
         # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
         # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
         # explicitement.
-        shell: 'C:\Program Files\Git\bin\bash.exe -e -o pipefail {0}'
+        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: |
           curl -X POST -H 'Content-Type: application/json' \
             --data "{\"text\":\":x: NexusPlay CI/CD : echec du pipeline sur \`${{ github.ref_name }}\` (${{ github.sha }}). Details : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
