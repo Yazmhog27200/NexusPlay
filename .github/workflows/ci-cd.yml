@@ -1,0 +1,103 @@
+name: CI/CD NexusPlay
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: vars
+        run: echo "tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build & push game-service
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/game-service
+          push: true
+          tags: |
+            yazmhog/nexusplay-game-service:${{ steps.vars.outputs.tag }}
+            yazmhog/nexusplay-game-service:latest
+
+      - name: Build & push leaderboard-service
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/leaderboard-service
+          push: true
+          tags: |
+            yazmhog/nexusplay-leaderboard-service:${{ steps.vars.outputs.tag }}
+            yazmhog/nexusplay-leaderboard-service:latest
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/frontend
+          push: true
+          tags: |
+            yazmhog/nexusplay-frontend:${{ steps.vars.outputs.tag }}
+            yazmhog/nexusplay-frontend:latest
+
+      # A la publication d'un tag semver (vX.Y.Z sur main), on retague en plus
+      # les images deja poussees avec ce numero de version (traçabilite du
+      # commit exact via le tag "sha-xxxxxxx" reste toujours disponible aussi).
+      - name: Tag semver images (releases uniquement)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for svc in game-service leaderboard-service frontend; do
+            docker buildx imagetools create \
+              -t "yazmhog/nexusplay-${svc}:${VERSION}" \
+              "yazmhog/nexusplay-${svc}:${{ steps.vars.outputs.tag }}"
+          done
+
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted
+    steps:
+      - name: Rolling update des Deployments Kubernetes
+        shell: bash
+        run: |
+          TAG="${{ needs.build-and-push.outputs.tag }}"
+          kubectl set image deployment/game-service game-service=yazmhog/nexusplay-game-service:$TAG -n nexusplay
+          kubectl set image deployment/leaderboard-service leaderboard-service=yazmhog/nexusplay-leaderboard-service:$TAG -n nexusplay
+          kubectl set image deployment/frontend frontend=yazmhog/nexusplay-frontend:$TAG -n nexusplay
+          kubectl rollout status deployment/game-service -n nexusplay --timeout=120s
+          kubectl rollout status deployment/leaderboard-service -n nexusplay --timeout=120s
+          kubectl rollout status deployment/frontend -n nexusplay --timeout=120s
+
+  load-test:
+    needs: deploy
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test de charge k6 (smoke, gate de la pipeline)
+        shell: bash
+        run: |
+          docker run --rm --add-host=host.docker.internal:host-gateway \
+            -v "${{ github.workspace }}/loadtest/k6:/scripts" \
+            grafana/k6 run /scripts/ci-smoke.js
+
+  notify-failure:
+    needs: [build-and-push, deploy, load-test]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notifier Slack de l'echec
+        run: |
+          curl -X POST -H 'Content-Type: application/json' \
+            --data "{\"text\":\":x: NexusPlay CI/CD : echec du pipeline sur \`${{ github.ref_name }}\` (${{ github.sha }}). Details : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "${{ secrets.SLACK_WEBHOOK_URL }}"
