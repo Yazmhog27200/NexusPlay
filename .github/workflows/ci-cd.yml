@@ -11,6 +11,10 @@ jobs:
     # Sur self-hosted (pas ubuntu-latest) : evite toute dependance aux minutes
     # Actions hebergees par GitHub (soumises a verification de facturation),
     # et reutilise le Docker Desktop deja present sur ce runner local.
+    # Tous les steps sont en PowerShell (shell par defaut sur un runner Windows) :
+    # un "shell: bash" avec chemin custom vers Git Bash provoque une erreur .NET
+    # ("Second path fragment must not be a drive or UNC name") sur ce runner,
+    # et le bash.exe de WSL sans distro installee echoue aussi -> on evite bash.
     runs-on: self-hosted
     outputs:
       tag: ${{ steps.vars.outputs.tag }}
@@ -18,11 +22,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: vars
-        # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
-        # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
-        # explicitement.
-        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
-        run: echo "tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          $sha = (git rev-parse --short HEAD)
+          "tag=sha-$sha" >> $env:GITHUB_OUTPUT
 
       - uses: docker/login-action@v3
         with:
@@ -63,32 +65,22 @@ jobs:
       # commit exact via le tag "sha-xxxxxxx" reste toujours disponible aussi).
       - name: Tag semver images (releases uniquement)
         if: startsWith(github.ref, 'refs/tags/v')
-        # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
-        # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
-        # explicitement.
-        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          for svc in game-service leaderboard-service frontend; do
-            docker buildx imagetools create \
-              -t "yazmhog/nexusplay-${svc}:${VERSION}" \
-              "yazmhog/nexusplay-${svc}:${{ steps.vars.outputs.tag }}"
-          done
+          $version = $env:GITHUB_REF_NAME -replace '^v',''
+          foreach ($svc in @('game-service','leaderboard-service','frontend')) {
+            docker buildx imagetools create -t "yazmhog/nexusplay-${svc}:${version}" "yazmhog/nexusplay-${svc}:${{ steps.vars.outputs.tag }}"
+          }
 
   deploy:
     needs: build-and-push
     runs-on: self-hosted
     steps:
       - name: Rolling update des Deployments Kubernetes
-        # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
-        # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
-        # explicitement.
-        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: |
-          TAG="${{ needs.build-and-push.outputs.tag }}"
-          kubectl set image deployment/game-service game-service=yazmhog/nexusplay-game-service:$TAG -n nexusplay
-          kubectl set image deployment/leaderboard-service leaderboard-service=yazmhog/nexusplay-leaderboard-service:$TAG -n nexusplay
-          kubectl set image deployment/frontend frontend=yazmhog/nexusplay-frontend:$TAG -n nexusplay
+          $tag = "${{ needs.build-and-push.outputs.tag }}"
+          kubectl set image deployment/game-service game-service=yazmhog/nexusplay-game-service:$tag -n nexusplay
+          kubectl set image deployment/leaderboard-service leaderboard-service=yazmhog/nexusplay-leaderboard-service:$tag -n nexusplay
+          kubectl set image deployment/frontend frontend=yazmhog/nexusplay-frontend:$tag -n nexusplay
           kubectl rollout status deployment/game-service -n nexusplay --timeout=120s
           kubectl rollout status deployment/leaderboard-service -n nexusplay --timeout=120s
           kubectl rollout status deployment/frontend -n nexusplay --timeout=120s
@@ -99,14 +91,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test de charge k6 (smoke, gate de la pipeline)
-        # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
-        # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
-        # explicitement.
-        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: |
-          docker run --rm --add-host=host.docker.internal:host-gateway \
-            -v "${{ github.workspace }}/loadtest/k6:/scripts" \
-            grafana/k6 run /scripts/ci-smoke.js
+          docker run --rm --add-host=host.docker.internal:host-gateway -v "${{ github.workspace }}/loadtest/k6:/scripts" grafana/k6 run /scripts/ci-smoke.js
 
   notify-failure:
     needs: [build-and-push, deploy, load-test]
@@ -114,11 +100,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Notifier Slack de l'echec
-        # "shell: bash" seul resout vers le bash.exe de WSL sur ce runner (qui n'a
-        # pas de distro Linux installee) au lieu de Git Bash -> on pointe le chemin
-        # explicitement.
-        shell: 'C:/Program Files/Git/bin/bash.exe -e -o pipefail {0}'
         run: |
-          curl -X POST -H 'Content-Type: application/json' \
-            --data "{\"text\":\":x: NexusPlay CI/CD : echec du pipeline sur \`${{ github.ref_name }}\` (${{ github.sha }}). Details : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
-            "${{ secrets.SLACK_WEBHOOK_URL }}"
+          $body = @{ text = ":x: NexusPlay CI/CD : echec du pipeline sur ``${{ github.ref_name }}`` (${{ github.sha }}). Details : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" } | ConvertTo-Json
+          Invoke-RestMethod -Uri "${{ secrets.SLACK_WEBHOOK_URL }}" -Method Post -Body $body -ContentType 'application/json'
