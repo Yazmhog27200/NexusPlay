@@ -8,13 +8,17 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    # Sur self-hosted (pas ubuntu-latest) : evite toute dependance aux minutes
+    # Actions hebergees par GitHub (soumises a verification de facturation),
+    # et reutilise le Docker Desktop deja present sur ce runner local.
+    runs-on: self-hosted
     outputs:
       tag: ${{ steps.vars.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
       - id: vars
+        shell: bash
         run: echo "tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/login-action@v3
@@ -56,6 +60,7 @@ jobs:
       # commit exact via le tag "sha-xxxxxxx" reste toujours disponible aussi).
       - name: Tag semver images (releases uniquement)
         if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           for svc in game-service leaderboard-service frontend; do
@@ -94,9 +99,10 @@ jobs:
   notify-failure:
     needs: [build-and-push, deploy, load-test]
     if: failure()
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Notifier Slack de l'echec
+        shell: bash
         run: |
           curl -X POST -H 'Content-Type: application/json' \
             --data "{\"text\":\":x: NexusPlay CI/CD : echec du pipeline sur \`${{ github.ref_name }}\` (${{ github.sha }}). Details : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
