@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-slack-alert
+  namespace: nexusplay
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: demo.rules
+      rules:
+        - alert: DemoIncidentNexusPlay
+          expr: vector(1) == 1
+          for: 30s
+          labels:
+            severity: warning
+          annotations:
+            description: "Alerte de demonstration NexusPlay -> Slack (declenchee manuellement pour la video)."
