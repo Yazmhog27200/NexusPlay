@@ -6,6 +6,7 @@ avec classement des joueurs.
 
 - **Schema d'architecture** : [`docs/architecture-diagram.md`](docs/architecture-diagram.md)
 - **Rapport de POC complet** : [`docs/POC-report.md`](docs/POC-report.md)
+- **Video de demo** (montee en charge + alerting Slack) : [`docs/videos/NexusPlay_Demo_Autoscaling_Slack.mp4`](docs/videos/NexusPlay_Demo_Autoscaling_Slack.mp4)
 
 ## Stack
 
